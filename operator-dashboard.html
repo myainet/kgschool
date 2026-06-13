@@ -1,0 +1,333 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ডাটা অপারেটর - গোবিন্দগঞ্জ কেজি স্কুল</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ecf0f1;
+        }
+        .header {
+            background: #16a085;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .logout-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .class-card {
+            background: white;
+            padding: 30px 20px;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .class-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .class-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #16a085;
+            margin-bottom: 15px;
+        }
+        .student-count {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            margin: 30px auto;
+            padding: 25px;
+            width: 95%;
+            max-width: 1200px;
+            border-radius: 15px;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #e74c3c;
+        }
+        .student-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow-x: auto;
+            display: block;
+        }
+        .student-table th, .student-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .student-table th {
+            background: #16a085;
+            color: white;
+            font-weight: bold;
+        }
+        .student-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        input, select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .save-btn {
+            background: #16a085;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .save-btn:hover {
+            background: #138a72;
+        }
+        .photo-preview {
+            max-width: 50px;
+            max-height: 50px;
+        }
+        h2 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📊 ডাটা অপারেটর ড্যাশবোর্ড</h2>
+        <button class="logout-btn" onclick="logout()">🚪 লগআউট</button>
+    </div>
+    
+    <div class="class-grid" id="classGrid"></div>
+
+    <div id="classModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <div id="classData"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzn-gYLEZNt1J9DMb8iHKvF3lue1uIvXSS2b4NlFHe4KT8sR0dOu9LT0MYE3yA1abjvnA/exec';
+        const classes = ['নার্সারি', 'প্লে', 'ক্লাস ওয়ান', 'ক্লাস টু', 'ক্লাস থ্রি', 'ক্লাস ফোর', 'ক্লাস ফাইভ'];
+
+        async function loadClasses() {
+            const grid = document.getElementById('classGrid');
+            grid.innerHTML = '';
+            
+            for(let className of classes) {
+                try {
+                    const response = await fetch(`${API_URL}?action=getClassStats&className=${encodeURIComponent(className)}`);
+                    const data = await response.json();
+                    
+                    grid.innerHTML += `
+                        <div class="class-card" onclick="openClass('${className}')">
+                            <div class="class-name">📖 ${className}</div>
+                            <div class="student-count">👨‍🎓 মোট শিক্ষার্থী: ${data.studentCount || 0} জন</div>
+                        </div>
+                    `;
+                } catch(error) {
+                    console.error('Error loading class:', className, error);
+                }
+            }
+        }
+
+        async function openClass(className) {
+            try {
+                const response = await fetch(`${API_URL}?action=getClassStudents&className=${encodeURIComponent(className)}`);
+                const data = await response.json();
+                
+                document.getElementById('modalTitle').innerHTML = `📚 ${className} ক্লাসের শিক্ষার্থীদের তথ্য`;
+                
+                let html = `
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>রোল</th>
+                                <th>নাম</th>
+                                <th>জানুয়ারি উপস্থিতি</th>
+                                <th>বার্ষিক পরীক্ষার নম্বর</th>
+                                <th>ছবি</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                            <tr>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th>বাংলা | ইংরেজি | গণিত</th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for(let student of data.students) {
+                    html += `
+                        <tr id="row_${student.roll}">
+                            <td>${student.roll}</td>
+                            <td>${student.name}</td>
+                            <td>
+                                <input type="number" id="att_${student.roll}" value="${student.janAttendance || 0}" 
+                                       placeholder="দিন" style="width:80px">
+                            </td>
+                            <td>
+                                <input type="number" id="bangla_${student.roll}" value="${student.banglaMarks || 0}" 
+                                       placeholder="বাংলা" style="width:70px"> |
+                                <input type="number" id="english_${student.roll}" value="${student.englishMarks || 0}" 
+                                       placeholder="ইংরেজি" style="width:70px"> |
+                                <input type="number" id="math_${student.roll}" value="${student.mathMarks || 0}" 
+                                       placeholder="গণিত" style="width:70px">
+                            </td>
+                            <td>
+                                <input type="file" id="photo_${student.roll}" accept="image/*" 
+                                       onchange="previewPhoto('${student.roll}', this)" style="font-size:12px">
+                                <div id="preview_${student.roll}"></div>
+                            </td>
+                            <td>
+                                <button class="save-btn" onclick="saveStudent('${className}', '${student.roll}')">💾 সেভ</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += `</tbody>也table`;
+                html += `<div style="margin-top:20px; text-align:center">
+                            <button class="save-btn" onclick="saveAll('${className}')">💾 সব ডাটা সেভ করুন</button>
+                        </div>`;
+                
+                document.getElementById('classData').innerHTML = html;
+                document.getElementById('classModal').style.display = 'block';
+            } catch(error) {
+                alert('ডাটা লোড করতে সমস্যা: ' + error.message);
+            }
+        }
+
+        function previewPhoto(roll, input) {
+            if(input.files && input.files[0]) {
+                const file = input.files[0];
+                if(file.size > 50000) {
+                    alert('❌ ছবির সাইজ 50KB এর কম হতে হবে!');
+                    input.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(`preview_${roll}`);
+                    preview.innerHTML = `<img src="${e.target.result}" class="photo-preview" alt="preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function saveStudent(className, roll) {
+            const attendance = document.getElementById(`att_${roll}`).value;
+            const bangla = document.getElementById(`bangla_${roll}`).value;
+            const english = document.getElementById(`english_${roll}`).value;
+            const math = document.getElementById(`math_${roll}`).value;
+            const photoFile = document.getElementById(`photo_${roll}`).files[0];
+            
+            let photoBase64 = null;
+            if(photoFile) {
+                photoBase64 = await fileToBase64(photoFile);
+            }
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'updateStudent',
+                        className: className,
+                        roll: parseInt(roll),
+                        janAttendance: parseInt(attendance),
+                        banglaMarks: parseInt(bangla),
+                        englishMarks: parseInt(english),
+                        mathMarks: parseInt(math),
+                        photo: photoBase64
+                    })
+                });
+                
+                alert(`✅ ${roll} নং শিক্ষার্থীর ডাটা সেভ হয়েছে!`);
+            } catch(error) {
+                alert('সেভ করতে সমস্যা: ' + error.message);
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function saveAll(className) {
+            alert('সব ডাটা সেভ করার অপশন - প্রতিটি ছাত্র আলাদাভাবে সেভ করুন');
+        }
+
+        function closeModal() {
+            document.getElementById('classModal').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        loadClasses();
+    </script>
+</body>
+</html>
