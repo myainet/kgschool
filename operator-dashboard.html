@@ -1,0 +1,376 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ডাটা অপারেটর ড্যাশবোর্ড</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ecf0f1;
+        }
+        .header {
+            background: #16a085;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            position: relative;
+        }
+        .logout-btn {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .class-card {
+            background: white;
+            padding: 25px 15px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .class-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            background: #16a085;
+            color: white;
+        }
+        .class-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .student-count {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            margin: 30px auto;
+            padding: 25px;
+            width: 95%;
+            max-width: 1100px;
+            border-radius: 15px;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #e74c3c;
+        }
+        .student-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .student-table th, .student-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .student-table th {
+            background: #16a085;
+            color: white;
+            font-weight: bold;
+        }
+        .student-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #16a085;
+        }
+        .save-btn {
+            background: #16a085;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .save-btn:hover {
+            background: #138a72;
+        }
+        .success-msg {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1001;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .photo-preview {
+            max-width: 50px;
+            max-height: 50px;
+            border-radius: 50%;
+        }
+        .photo-input {
+            font-size: 11px;
+            padding: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📊 ডাটা অপারেটর ড্যাশবোর্ড</h2>
+        <button class="logout-btn" onclick="logout()">🚪 লগআউট</button>
+    </div>
+    
+    <div class="class-grid" id="classGrid"></div>
+
+    <div id="classModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <div style="overflow-x: auto;">
+                <div id="classData"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="successMsg" class="success-msg">✅ ডাটা সেভ হয়েছে!</div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+        const classes = ['প্লে', 'নার্সারি', 'স্টান্ডার্ড', 'ওয়ান', 'টু', 'থ্রি', 'ফোর', 'ফাইভ'];
+
+        async function loadClasses() {
+            const grid = document.getElementById('classGrid');
+            grid.innerHTML = '';
+            
+            for(let className of classes) {
+                try {
+                    const response = await fetch(`${API_URL}?action=getClassStudents&className=${encodeURIComponent(className)}`);
+                    const data = await response.json();
+                    
+                    grid.innerHTML += `
+                        <div class="class-card" onclick="openClass('${className}')">
+                            <div class="class-name">📖 ${className}</div>
+                            <div class="student-count">👨‍🎓 ${data.students ? data.students.length : 0} জন</div>
+                        </div>
+                    `;
+                } catch(error) {
+                    console.error('Error:', error);
+                }
+            }
+        }
+
+        async function openClass(className) {
+            try {
+                const response = await fetch(`${API_URL}?action=getClassStudents&className=${encodeURIComponent(className)}`);
+                const data = await response.json();
+                
+                document.getElementById('modalTitle').innerHTML = `📚 ${className} ক্লাসের শিক্ষার্থীদের তথ্য`;
+                
+                let html = `
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>রোল</th>
+                                <th>নাম</th>
+                                <th>জানুয়ারি<br>উপস্থিতি</th>
+                                <th colspan="3">বার্ষিক পরীক্ষার নম্বর</th>
+                                <th>ছবি</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                            <tr style="background:#f0f0f0">
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th>বাংলা</th>
+                                <th>ইংরেজি</th>
+                                <th>গণিত</th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for(let student of data.students) {
+                    // ছবি প্রিভিউ
+                    let photoHtml = '';
+                    if(student.photo && student.photo !== '') {
+                        photoHtml = `<img src="${student.photo}" class="photo-preview" alt="photo">`;
+                    }
+                    
+                    html += `
+                        <tr id="row_${student.roll}">
+                            <td>${student.roll}</td>
+                            <td>${student.name}</td>
+                            <td>
+                                <input type="number" id="att_${student.roll}" value="${student.janAttendance || 0}" 
+                                       min="0" max="22" style="width:70px">
+                            </td>
+                            <td>
+                                <input type="number" id="bangla_${student.roll}" value="${student.banglaMarks || 0}" 
+                                       min="0" max="100" style="width:70px">
+                            </td>
+                            <td>
+                                <input type="number" id="english_${student.roll}" value="${student.englishMarks || 0}" 
+                                       min="0" max="100" style="width:70px">
+                             </td>
+                            <td>
+                                <input type="number" id="math_${student.roll}" value="${student.mathMarks || 0}" 
+                                       min="0" max="100" style="width:70px">
+                             </td>
+                            <td>
+                                <div id="preview_${student.roll}">${photoHtml}</div>
+                                <input type="file" id="photo_${student.roll}" accept="image/*" 
+                                       onchange="previewPhoto('${student.roll}', this)" class="photo-input">
+                             </td>
+                            <td>
+                                <button class="save-btn" onclick="saveStudent('${className}', '${student.roll}')">💾 সেভ</button>
+                             </td>
+                        </tr>
+                    `;
+                }
+                
+                html += `</tbody>表`;
+                html += `<div style="margin-top:20px; text-align:center">
+                            <button class="save-btn" style="padding:10px 30px;" onclick="saveAllStudents('${className}')">💾 সব ডাটা সেভ করুন</button>
+                        </div>`;
+                
+                document.getElementById('classData').innerHTML = html;
+                document.getElementById('classModal').style.display = 'block';
+            } catch(error) {
+                alert('ডাটা লোড করতে সমস্যা: ' + error.message);
+            }
+        }
+
+        function previewPhoto(roll, input) {
+            if(input.files && input.files[0]) {
+                const file = input.files[0];
+                if(file.size > 50000) {
+                    alert('❌ ছবির সাইজ 50KB এর কম হতে হবে!');
+                    input.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(`preview_${roll}`);
+                    preview.innerHTML = `<img src="${e.target.result}" class="photo-preview" alt="preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function saveStudent(className, roll) {
+            const attendance = document.getElementById(`att_${roll}`).value;
+            const bangla = document.getElementById(`bangla_${roll}`).value;
+            const english = document.getElementById(`english_${roll}`).value;
+            const math = document.getElementById(`math_${roll}`).value;
+            const photoFile = document.getElementById(`photo_${roll}`).files[0];
+            
+            let photoBase64 = null;
+            if(photoFile) {
+                photoBase64 = await fileToBase64(photoFile);
+            }
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'updateStudent',
+                        className: className,
+                        roll: parseInt(roll),
+                        janAttendance: parseInt(attendance),
+                        banglaMarks: parseInt(bangla),
+                        englishMarks: parseInt(english),
+                        mathMarks: parseInt(math),
+                        photo: photoBase64
+                    })
+                });
+                
+                showSuccessMessage();
+                document.getElementById(`photo_${roll}`).value = '';
+            } catch(error) {
+                alert('সেভ করতে সমস্যা: ' + error.message);
+            }
+        }
+
+        async function saveAllStudents(className) {
+            alert('সব ডাটা সেভ করার জন্য প্রতিটি শিক্ষার্থী আলাদাভাবে সেভ করুন।');
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function showSuccessMessage() {
+            const msg = document.getElementById('successMsg');
+            msg.style.display = 'block';
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, 2000);
+        }
+
+        function closeModal() {
+            document.getElementById('classModal').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        loadClasses();
+    </script>
+</body>
+</html>

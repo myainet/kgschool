@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>এডমিন ড্যাশবোর্ড</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f4;
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .logout-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .stat {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        .stat-value {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .edit-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .edit-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .edit-btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .edit-btn:hover {
+            background: #2980b9;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>👑 এডমিন ড্যাশবোর্ড</h2>
+        <button class="logout-btn" onclick="logout()">🚪 লগআউট</button>
+    </div>
+    
+    <div class="container">
+        <h3 style="margin-bottom:20px;">📊 ক্লাস সমূহের সারাংশ</h3>
+        <div id="summary" class="summary-grid">
+            <div class="loading">লোড হচ্ছে...</div>
+        </div>
+        
+        <div class="edit-section">
+            <h3>⚙️ এডমিন কন্ট্রোল প্যানেল</h3>
+            <div class="edit-buttons">
+                <button class="edit-btn" onclick="addNewStudent()">➕ নতুন শিক্ষার্থী যোগ</button>
+                <button class="edit-btn" onclick="generateReport()">📊 রিপোর্ট জেনারেট</button>
+                <button class="edit-btn" onclick="exportData()">📥 ডাটা এক্সপোর্ট</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+        async function loadSummary() {
+            try {
+                const response = await fetch(`${API_URL}?action=getSummary`);
+                const data = await response.json();
+                
+                if(data.success && data.summary) {
+                    const summaryDiv = document.getElementById('summary');
+                    summaryDiv.innerHTML = '';
+                    
+                    data.summary.forEach(item => {
+                        summaryDiv.innerHTML += `
+                            <div class="card">
+                                <h3>📚 ${item.className}</h3>
+                                <div class="stat">
+                                    <span class="stat-label">মোট শিক্ষার্থী:</span>
+                                    <span class="stat-value">${item.totalStudents} জন</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">গড় উপস্থিতি:</span>
+                                    <span class="stat-value">${item.avgAttendance} দিন</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">পাসের হার:</span>
+                                    <span class="stat-value">${item.passRate}%</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">গড় নম্বর:</span>
+                                    <span class="stat-value">${item.avgMarks}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch(error) {
+                document.getElementById('summary').innerHTML = '<div class="loading">সার্ভার সংযোগে সমস্যা!</div>';
+            }
+        }
+
+        function addNewStudent() {
+            const className = prompt('কোন ক্লাসে যোগ করবেন?\n(প্লে/নার্সারি/স্টান্ডার্ড/ওয়ান/টু/থ্রি/ফোর/ফাইভ)');
+            if(className) {
+                const roll = prompt('রোল নম্বর দিন:');
+                const name = prompt('শিক্ষার্থীর নাম:');
+                if(roll && name) {
+                    alert(`নতুন শিক্ষার্থী ${className} ক্লাসে যোগ হবে।\nরোল: ${roll}\nনাম: ${name}\n\nসম্পূর্ণ ফর্ম শীঘ্রই আসছে।`);
+                }
+            }
+        }
+
+        function generateReport() {
+            alert('📄 সম্পূর্ণ রিপোর্ট জেনারেট হচ্ছে...');
+        }
+
+        function exportData() {
+            alert('📁 ডাটা এক্সপোর্ট শুরু হয়েছে');
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        loadSummary();
+    </script>
+</body>
+</html>
